@@ -1,0 +1,333 @@
+[
+    {
+        "id": "016b684987d87254",
+        "type": "tab",
+        "label": "IoT Knallert",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "9f7b39b2e30b04b1",
+        "type": "credentials",
+        "z": "016b684987d87254",
+        "name": "Configuration",
+        "props": [
+            {
+                "value": "api.token.INSTALL",
+                "type": "msg"
+            },
+            {
+                "value": "api.token.HTK",
+                "type": "msg"
+            },
+            {
+                "value": "api.base_url",
+                "type": "msg"
+            },
+            {
+                "value": "api.token.ballerup",
+                "type": "msg"
+            }
+        ],
+        "x": 440,
+        "y": 240,
+        "wires": [
+            [
+                "d233b1e1b1f7e4ae"
+            ]
+        ]
+    },
+    {
+        "id": "fb3f09a8aed5a3a9",
+        "type": "inject",
+        "z": "016b684987d87254",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": true,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 210,
+        "y": 240,
+        "wires": [
+            [
+                "9f7b39b2e30b04b1"
+            ]
+        ]
+    },
+    {
+        "id": "2eb2d9a3c6aa93c4",
+        "type": "http request",
+        "z": "016b684987d87254",
+        "name": "",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "authType": "",
+        "senderr": false,
+        "x": 960,
+        "y": 520,
+        "wires": [
+            [
+                "676a1bf7c7df4e14"
+            ]
+        ]
+    },
+    {
+        "id": "2ff8cc5ab66c5787",
+        "type": "postgres",
+        "z": "016b684987d87254",
+        "postgresdb": "ab26aac2c75347a1",
+        "name": "os2iot_exporter",
+        "output": true,
+        "outputs": 1,
+        "x": 1010,
+        "y": 420,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "2491f024cc364fc5",
+        "type": "function",
+        "z": "016b684987d87254",
+        "name": "prepare dev write",
+        "func": "\nconst begin = [\n    {\n        query: 'begin',\n    },\n    {\n        query: 'delete from devices ' +\n        ' where app_id = $app_id and owner = $owner',\n        params:{\n            app_id: msg.app_id,\n            owner: msg.owner\n        }\n    }\n];\n\nconst inserts = msg.payload.data.map( dev => {\n    let batt = -1;\n    if (\"lorawanSettings\" in dev) {\n        batt = dev.lorawanSettings.deviceStatusBattery;\n    }\n    \n    \n    return ({\n        query:  'insert into devices ' +\n                       '( id,  name,  lat,  lon,  comment_on_location,  comment,  metadata,  device_eui,  sent_time,  app_id,  device_status_battery, owner, updated) ' +\n                'values ($id, $name, $lat, $lon, $comment_on_location, $comment, $metadata, $device_eui, $sent_time, $app_id, $device_status_battery, $owner, now())',\n        params: {\n            id: dev.id,\n            name: dev.name,\n            lat: dev.location ? dev.location.coordinates[1] : null,\n            lon: dev.location ? dev.location.coordinates[0] : null,\n            comment_on_location: dev.commentOnLocation,\n            comment: dev.comment,\n            metadata: dev.metadata,\n            device_eui: dev.deviceEUI,\n            sent_time: dev.latestReceivedMessage ? dev.latestReceivedMessage.sentTime : null,\n            app_id: msg.app_id,\n            device_status_battery: batt,\n            owner: msg.owner\n        }\n    });\n});\n\nconst commit = [\n    {\n        query: 'commit',\n    },\n];\n\n\n\nmsg.payload = [...begin, ...inserts, ...commit];\nreturn msg",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 760,
+        "y": 720,
+        "wires": [
+            [
+                "778dce10b797a9ef"
+            ]
+        ]
+    },
+    {
+        "id": "676a1bf7c7df4e14",
+        "type": "function",
+        "z": "016b684987d87254",
+        "name": "prepare n times iot-device calls",
+        "func": "msg.payload.data.forEach( app => {\n    //call = \"application/\" + app.id + \"/iot-devices\";\n    node.send({\n        //app_id: app.id,\n        url: msg.url + \"/\" + app.id + \"/iot-devices\",\n        headers: msg.req_headers,\n        owner: msg.owner,\n        app_id: app.id\n        \n    });\n});\n",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 800,
+        "y": 620,
+        "wires": [
+            [
+                "f7bc5bd35b4ce5e8"
+            ]
+        ]
+    },
+    {
+        "id": "d233b1e1b1f7e4ae",
+        "type": "function",
+        "z": "016b684987d87254",
+        "name": "save config in flow",
+        "func": "flow.set(\"api\",msg.api);\n",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 680,
+        "y": 240,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "4780696437570ae0",
+        "type": "function",
+        "z": "016b684987d87254",
+        "name": "for each API token",
+        "func": "const api = flow.get(\"api\");\n\nfor (const [owner, api_token] of Object.entries(api.token)) {\n    node.send({\n        api_base_url: api.base_url,\n        req_headers: {\"x-api-key\" : api_token},\n        owner: owner\n    });\n}\n",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 460,
+        "y": 340,
+        "wires": [
+            [
+                "b2eeea7dd7645467",
+                "ccfe02fabbada060"
+            ]
+        ]
+    },
+    {
+        "id": "bd88c3b920fd30ee",
+        "type": "inject",
+        "z": "016b684987d87254",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "7200",
+        "crontab": "",
+        "once": false,
+        "onceDelay": "5",
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 220,
+        "y": 340,
+        "wires": [
+            [
+                "4780696437570ae0"
+            ]
+        ]
+    },
+    {
+        "id": "ccfe02fabbada060",
+        "type": "function",
+        "z": "016b684987d87254",
+        "name": "Gateways",
+        "func": "msg.url = msg.api_base_url + \"chirpstack/gateway\";\nmsg.headers = msg.req_headers;\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 730,
+        "y": 340,
+        "wires": [
+            [
+                "264fad2ea0b831ea"
+            ]
+        ]
+    },
+    {
+        "id": "b2eeea7dd7645467",
+        "type": "function",
+        "z": "016b684987d87254",
+        "name": "Applications",
+        "func": "\nmsg.url = msg.api_base_url + \"application\";\nmsg.headers = msg.req_headers;\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 740,
+        "y": 520,
+        "wires": [
+            [
+                "2eb2d9a3c6aa93c4"
+            ]
+        ]
+    },
+    {
+        "id": "264fad2ea0b831ea",
+        "type": "http request",
+        "z": "016b684987d87254",
+        "name": "",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "authType": "",
+        "senderr": false,
+        "x": 940,
+        "y": 340,
+        "wires": [
+            [
+                "d71e6e42c67c9f8f"
+            ]
+        ]
+    },
+    {
+        "id": "d71e6e42c67c9f8f",
+        "type": "function",
+        "z": "016b684987d87254",
+        "name": "prepare gw write",
+        "func": "\nconst begin = [\n    {\n        query: 'begin',\n    },\n    {\n        query: 'delete from gateways where owner = $owner',\n        params: {owner: msg.owner}\n    },\n];\n\nconst inserts = msg.payload.result.map(gw => \n    ({\n         query:  'insert into gateways ' +\n                       '( id,  name,  lat,  lon,  altitude,  description,  last_seen_at, owner, updated) ' +\n                'values ($id, $name, $lat, $lon, $altitude, $description, $last_seen_at, $owner, now())',\n        params: {\n            id: gw.id,\n            name: gw.name,\n            lat: gw.location.latitude,\n            lon: gw.location.longitude,\n            altitude: gw.location.altitude,\n            description: gw.description,\n            last_seen_at : gw.lastSeenAt,\n            owner: msg.owner\n        }\n    })\n);\n\nconst commit = [\n    {\n        query: 'commit',\n    },\n];\n\n\n\nmsg.payload = [...begin, ...inserts, ...commit];\nreturn msg",
+        "outputs": 1,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 750,
+        "y": 420,
+        "wires": [
+            [
+                "2ff8cc5ab66c5787"
+            ]
+        ]
+    },
+    {
+        "id": "f7bc5bd35b4ce5e8",
+        "type": "http request",
+        "z": "016b684987d87254",
+        "name": "",
+        "method": "GET",
+        "ret": "obj",
+        "paytoqs": "ignore",
+        "url": "",
+        "tls": "",
+        "persist": false,
+        "proxy": "",
+        "authType": "",
+        "senderr": false,
+        "x": 1100,
+        "y": 620,
+        "wires": [
+            [
+                "2491f024cc364fc5"
+            ]
+        ]
+    },
+    {
+        "id": "778dce10b797a9ef",
+        "type": "postgres",
+        "z": "016b684987d87254",
+        "postgresdb": "ab26aac2c75347a1",
+        "name": "os2iot_exporter",
+        "output": true,
+        "outputs": 1,
+        "x": 1010,
+        "y": 720,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "ab26aac2c75347a1",
+        "type": "postgresdb",
+        "hostname": "postgres_db_1",
+        "port": "5432",
+        "db": "os2iot_exporter",
+        "ssl": false
+    }
+]
