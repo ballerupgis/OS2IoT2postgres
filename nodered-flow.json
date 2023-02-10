@@ -14,19 +14,11 @@
         "name": "Configuration",
         "props": [
             {
-                "value": "api.token.INSTALL",
-                "type": "msg"
-            },
-            {
-                "value": "api.token.HTK",
-                "type": "msg"
-            },
-            {
                 "value": "api.base_url",
                 "type": "msg"
             },
             {
-                "value": "api.token.ballerup",
+                "value": "api.token.bullerby",
                 "type": "msg"
             }
         ],
